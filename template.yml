@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Security Baseline Lab
+
+Parameters:
+  FullName:
+    Type: String
+    Description: "Full name (used for naming resources)"
+    Default: "Palal Asare"
+
+Resources:
+
+  LabBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${FullName}-module-11-lab-1-bucket"
+
+  LabUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${FullName}-module-11-lab-1-user"
+
+  LabBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref LabBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:user/${LabUser}"
+            Action: "s3:PutObject"
+            Resource:
+              - !Sub "arn:aws:s3:::${LabBucket}/*"
+
+
