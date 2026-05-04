@@ -16,6 +16,9 @@ Resources:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: !Sub "${ModuleName}-vpc"
 
   LabSubnet:
     Type: AWS::EC2::Subnet
@@ -37,12 +40,12 @@ Resources:
   UnrestrictedBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${FullName}-${ModuleName}-unrestricted-bucket"
+      BucketName: !Sub "${ModuleName}-accessible-bucket"
 
   RestrictedBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${FullName}-${ModuleName}-restricted-bucket"
+      BucketName: !Sub "${ModuleName}-unaccessible-bucket"
 
   S3GatewayEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -94,7 +97,7 @@ Resources:
               - !Sub "${UnrestrictedBucket.Arn}"
               - !Sub "${UnrestrictedBucket.Arn}/*"
 
-  EC2Role:
+  WorkshopEC2Role:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -105,13 +108,14 @@ Resources:
               Service: ec2.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/S3ReadOnlyAccess
+        - arn:aws:iam::aws:policy/AmazonSSMFullAccess
 
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref EC2Role
+        - !Ref WorkshopEC2Role
 
   LabInstance:
     Type: AWS::EC2::Instance
