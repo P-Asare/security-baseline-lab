@@ -16,6 +16,8 @@ Resources:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
       Tags:
         - Key: Name
           Value: !Sub "${ModuleName}-vpc"
@@ -25,11 +27,17 @@ Resources:
     Properties:
       VpcId: !Ref LabVPC
       CidrBlock: 10.0.1.0/24
+      Tags:
+        - Key: Name
+          Value: !Sub "${ModuleName}-subnet"
 
   LabRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref LabVPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${ModuleName}-rt"
 
   SubnetRouteAssoc:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -41,11 +49,17 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "${ModuleName}-accessible-bucket"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ModuleName}-accessible-bucket"
 
   RestrictedBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "${ModuleName}-unaccessible-bucket"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ModuleName}-unaccessible-bucket"
 
   S3GatewayEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -69,12 +83,15 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId: !Ref LabVPC
-      GroupDescription: Allow HTTPS
+      GroupDescription: Allow HTTPS from VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           CidrIp: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: !Sub "${ModuleName}-endpoint-sg"
 
   S3InterfaceEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -97,9 +114,46 @@ Resources:
               - !Sub "${UnrestrictedBucket.Arn}"
               - !Sub "${UnrestrictedBucket.Arn}/*"
 
+  SSMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref LabVPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref LabSubnet
+      SecurityGroupIds:
+        - !Ref EndpointSG
+      PrivateDnsEnabled: true
+
+  EC2MessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref LabVPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref LabSubnet
+      SecurityGroupIds:
+        - !Ref EndpointSG
+      PrivateDnsEnabled: true
+
+  SSMMessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref LabVPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref LabSubnet
+      SecurityGroupIds:
+        - !Ref EndpointSG
+      PrivateDnsEnabled: true
+
   WorkshopEC2Role:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub "${ModuleName}-ec2-role"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -108,8 +162,11 @@ Resources:
               Service: ec2.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/S3ReadOnlyAccess
-        - arn:aws:iam::aws:policy/AmazonSSMFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: !Sub "${ModuleName}-ec2-role"
 
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -124,3 +181,6 @@ Resources:
       SubnetId: !Ref LabSubnet
       ImageId: ami-0c02fb55956c7d316
       IamInstanceProfile: !Ref EC2InstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub "${ModuleName}-ec2"
